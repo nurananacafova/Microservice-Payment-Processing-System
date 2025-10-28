@@ -17,16 +17,9 @@ public class PaymentController {
     private final PaymentService paymentService;
 
     @PostMapping("/")
-    public ResponseEntity<PaymentResponseDto> processPayment(@RequestBody @Valid PaymentRequestDto paymentRequest) {
-        Payment payment = paymentService.processPayment(paymentRequest);
-
-        PaymentResponseDto response = new PaymentResponseDto();
-        response.setTransactionId(payment.getTransactionId());
-        response.setStatus(payment.getStatus());
-        response.setRisky(payment.isRisky());
-        response.setMessage("Payment processed successfully");
-
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
+    public ResponseEntity<String> processPayment(@RequestBody @Valid PaymentRequestDto paymentRequest) {
+        paymentService.processPayment(paymentRequest);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @GetMapping("/{transactionId}")

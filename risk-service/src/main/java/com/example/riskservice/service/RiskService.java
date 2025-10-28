@@ -8,6 +8,7 @@ import com.example.riskservice.enums.RiskStatus;
 import com.example.riskservice.model.RiskCheck;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -22,7 +23,10 @@ public class RiskService {
     private final RiskCheckRepository riskCheckRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    @KafkaListener(topics = "risk-check-required")
+    @Value("${spring.kafka.topic.check-approved}")
+    String checkApprovedTopic;
+
+    @KafkaListener(topics = "${spring.kafka.topic.check-required}")
     public void handleRiskCheck(RiskCheckRequest request) {
         log.info("Processing risk check for transaction: {}", request.getTransactionId());
         RiskCheck rc = new RiskCheck();
@@ -47,7 +51,7 @@ public class RiskService {
         res.setTransactionId(request.getTransactionId());
         res.setApproved(!isRisky);
         res.setMessage(rc.getReason());
-        kafkaTemplate.send("risk-check-approved", res);
+        kafkaTemplate.send(checkApprovedTopic, res);
         log.info("Risk check completed for {}: risky={}", request.getTransactionId(), isRisky);
     }
 
@@ -66,7 +70,4 @@ public class RiskService {
     public List<RiskCheck> getRiskyTransactions(String fromAccount) {
         return riskCheckRepository.findByFromAccountAndRiskyTrue(fromAccount);
     }
-
-//    public RiskCheck getRiskCheckByTransactionId(String transactionId) { ... }
-//    public List<RiskCheck> getRiskyTransactions(String fromAccount) { ... }
 }

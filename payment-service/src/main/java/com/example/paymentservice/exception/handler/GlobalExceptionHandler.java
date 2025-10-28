@@ -1,9 +1,6 @@
 package com.example.paymentservice.exception.handler;
 
-import com.example.paymentservice.exception.DuplicatePaymentException;
-import com.example.paymentservice.exception.InsufficientFundsException;
-import com.example.paymentservice.exception.PaymentNotFoundException;
-import com.example.paymentservice.exception.PaymentProcessingException;
+import com.example.paymentservice.exception.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,7 +34,11 @@ public class GlobalExceptionHandler {
         log.error("Payment Processing Exception: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
-
+    @ExceptionHandler({TransactionIdAlreadyExistsException.class})
+    public ResponseEntity<Object> handleRiskCheckNotFoundException(TransactionIdAlreadyExistsException ex) {
+        log.error("Transaction Id already exists: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
     @ExceptionHandler(InsufficientFundsException.class)
     public ResponseEntity<Object> handleInsufficientFunds(InsufficientFundsException ex) {
         log.error("Insufficient funds error: {}", ex.getMessage());

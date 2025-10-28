@@ -5,11 +5,9 @@ spring:
     name: payment-service
   data:
     mongodb:
-#      uri:  mongodb://root:example@localhost:27017/payment_db
       host: ${MONGO_HOST:localhost}
       port: 27017
       database: payment_db
-#      uri: mongodb://localhost:27017/payment_db
       username: ${MONGO_USER:root}
       password: ${MONGO_PASSWORD:example}
       authentication-database: admin
@@ -25,6 +23,9 @@ spring:
       properties:
         spring.json.trusted.packages: "*"
       auto-offset-reset: earliest
+    topic:
+      check-required: risk-check-required
+      check-approved: risk-check-approved
 
 
 

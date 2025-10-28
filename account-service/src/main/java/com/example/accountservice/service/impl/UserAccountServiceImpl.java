@@ -15,6 +15,7 @@ import com.example.accountservice.repository.UserAccountRepository;
 import com.example.accountservice.service.UserAccountService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +34,11 @@ public class UserAccountServiceImpl implements UserAccountService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final TransactionRecordRepository transactionRecordRepository;
     private final ModelMapper modelMapper;
+    @Value("${spring.kafka.topic.balance_updated}")
+    String balanceUpdateTopic;
+
+    @Value("${spring.kafka.topic.account_created}")
+    String accountCreatedTopic;
 
     @Override
     public void createAccount(CreateUserDto dto) {
@@ -56,27 +62,28 @@ public class UserAccountServiceImpl implements UserAccountService {
         account.setBalances(balances);
         UserAccount saved = accountRepository.save(account);
 
-        kafkaTemplate.send("account-created", modelMapper.toUserAccountDto(saved));
+        kafkaTemplate.send(accountCreatedTopic, modelMapper.toUserAccountDto(saved));
     }
 
     @Override
     public List<UserAccountDto> getAccountByUserId(Long userId) {
         List<UserAccount> userAccount = accountRepository.findByUserId(userId);
-        if (userAccount.isEmpty()) throw new AccountNotFoundException("Account not found for user: " + userId);
+        if (userAccount.isEmpty())
+            throw new AccountNotFoundException(String.format("Account not found for user: %s", userId));
         return modelMapper.toUserAccountDtoList(userAccount);
     }
 
     @Override
     public UserAccountDto getAccountByAccountNumber(String accountNumber) {
         UserAccount userAccount = accountRepository.findByAccountNumber(accountNumber)
-                .orElseThrow(() -> new AccountNotFoundException("Account not found: " + accountNumber));
+                .orElseThrow(() -> new AccountNotFoundException(String.format("Account not found for user: %s" , accountNumber)));
         return modelMapper.toUserAccountDto(userAccount);
     }
 
     @Override
     public Map<Currency, BigDecimal> getBalancesByAccountNumber(String accountNumber) {
         UserAccount account = accountRepository.findByAccountNumber(accountNumber)
-                .orElseThrow(() -> new AccountNotFoundException("Account not found: " + accountNumber));
+                .orElseThrow(() -> new AccountNotFoundException(String.format("Account not found for user: %s", accountNumber)));
         List<Balance> balance = balanceRepository.findByUserAccount(account);
         return balance.stream().collect(Collectors.toMap(Balance::getCurrency, Balance::getAmount));
     }
@@ -87,20 +94,23 @@ public class UserAccountServiceImpl implements UserAccountService {
         if (request.getTransactionId() == null || request.getTransactionId().isBlank()) {
             throw new IllegalArgumentException("transactionId is required for idempotency");
         }
-        if (transactionRecordRepository.existsByTransactionId(request.getTransactionId())) {
-            log.info("Transaction {} already applied. Ignoring duplicate.", request.getTransactionId());
+//        if (transactionRecordRepository.existsByTransactionId(request.getTransactionId())) {
+//            log.info("Transaction {} already applied. Ignoring duplicate.", request.getTransactionId());
+//            return;
+//        }
+        if (transactionRecordRepository.existsByTransactionIdAndAccountNumber(request.getTransactionId(), accountNumber)) {
+            log.info("Transaction {} already applied for account {}. Ignoring duplicate.", request.getTransactionId(), accountNumber);
             return;
         }
-
         UserAccount account = accountRepository.findByAccountNumber(accountNumber)
-                .orElseThrow(() -> new AccountNotFoundException("Account not found: " + accountNumber));
+                .orElseThrow(() -> new AccountNotFoundException(String.format("Account not found for user: %s", accountNumber)));
 
         Balance balance = balanceRepository.findByUserAccountAndCurrency(account, request.getCurrency())
-                .orElseThrow(() -> new BalanceNotFoundException("Balance not found for currency: " + request.getCurrency().name()));
+                .orElseThrow(() -> new BalanceNotFoundException(String.format("Balance not found for currency: %s" , request.getCurrency().name())));
 
         BigDecimal newBal = balance.getAmount().add(request.getAmount());
         if (newBal.compareTo(BigDecimal.ZERO) < 0) {
-            throw new InsufficientFundsException("Insufficient funds for currency: " + request.getCurrency());
+            throw new InsufficientFundsException(String.format("Insufficient funds for currency: %s" , request.getCurrency()));
         }
 
         balance.setAmount(newBal);
@@ -118,7 +128,7 @@ public class UserAccountServiceImpl implements UserAccountService {
         event.put("currency", request.getCurrency());
         event.put("amount", newBal);
         event.put("transactionId", request.getTransactionId());
-        kafkaTemplate.send("balance-updated", event);
+        kafkaTemplate.send(balanceUpdateTopic, event);
 
         log.info("Balance updated for {} {} -> new: {}", accountNumber, request.getCurrency(), newBal);
     }
