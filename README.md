@@ -38,12 +38,13 @@ docker-compose up
 5. Start the **API Gateway** (`http://localhost:8080`).
 
 ---
-
+## Endpoints
 #### discovery service: http://localhost:8761/
 #### account-service: http://localhost:8081/swagger-ui/index.html#/
 #### payment-service: http://localhost:8082/swagger-ui/index.html#/
 #### risk-service: http://localhost:8083/swagger-ui/index.html#/
-#### postgre: http://localhost:5050/browser/
+#### api-gateway: http://localhost:8080/
+#### postgres: http://localhost:5050/browser/
 #### mongodb: http://localhost:8085/
 
 ---
@@ -51,7 +52,8 @@ docker-compose up
 ## Request Examples:
 1. Create Account:
 
-POST http://localhost:8081/accounts/
+* With account-service: POST http://localhost:8081/accounts/
+* With API Gateway: POST http://localhost:8080/accounts/ 
 ```
 {
   "userId": 1,
@@ -65,7 +67,8 @@ POST http://localhost:8081/accounts/
 ```
 2. Send Payment Request:
 
-POST http://localhost:8082/payments
+* With payment-service: POST http://localhost:8082/payments
+* With Api Gateway: POST http://localhost:8080/payments
 ```
 {
   "fromAccount": "fromAccount",
@@ -76,6 +79,11 @@ POST http://localhost:8082/payments
   "transactionId": "transactionId"
 }
 ```
+---
+
+#### Default usernames and passwords for simple authentication in Api Gateway requests:
+1. user1 & password1
+2. admin & adminpass
 
 ---
 
@@ -84,8 +92,8 @@ POST http://localhost:8082/payments
 - Spring Boot
 - Java 17+
 - Gradle
-- PostgresSQL
-- MongoDb
+- PostgreSQL
+- MongoDB
 - Liquibase
 - Docker
 
